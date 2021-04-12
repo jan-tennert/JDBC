@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.Permission
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
+import net.dv8tion.jda.api.requests.restaction.CommandUpdateAction
 
 class JCDB(val jda: JDA) : ListenerAdapter() {
 
@@ -42,16 +43,26 @@ class JCDB(val jda: JDA) : ListenerAdapter() {
     }
 
     fun registerCommands(vararg commands: Command) {
+        val global = jda.updateCommands()
+        val guild = hashMapOf<Long, CommandUpdateAction>()
         this.commands.addAll(commands)
         var index = 0
         for (command in commands) {
             index++
             println("[CommandHandler] Registering Command $index/${commands.size}: ${command.name}")
             if(command.guildOnly.first) {
-                jda.getGuildById(command.guildOnly.second)!!.updateCommands().addCommands(command).queue()
+                if(guild.containsKey(command.guildOnly.second)) {
+                    guild[command.guildOnly.second]!!.addCommands(command)
+                } else {
+                    guild[command.guildOnly.second] = jda.getGuildById(command.guildOnly.second)!!.updateCommands().addCommands(command)
+                }
             } else {
-                jda.updateCommands().addCommands(command).queue()
+                global.addCommands(command)
             }
+        }
+        global.queue()
+        for (i in guild) {
+            i.value.queue()
         }
         println("[CommandHandler] Registered all commands!")
     }
